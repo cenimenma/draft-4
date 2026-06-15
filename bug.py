@@ -2,8 +2,7 @@ import os
 import sqlite3
 
 def get_user_data(username):
-    # 【Bug 1：严重安全漏洞 - SQL 注入】
-    # 直接用字符串拼接构造 SQL 语句，黑客只要输入类似 "' OR '1'='1" 就能脱裤
+
     db_path = "users.db"
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -13,22 +12,48 @@ def get_user_data(username):
     return cursor.fetchall()
 
 def process_logs(log_directory):
-    # 【Bug 2：逻辑/运行隐患 - 未定义变量与资源未关闭】
-    # 这里故意漏掉了 conn.close() 导致句柄泄漏。
-    # 并且下面莫名其妙使用了一个根本没有定义的变量 `log_files_count`
+
     print(f"正在处理目录: {log_directory}")
     
-    # 致命低级错误：使用了未定义的变量，程序运行到这里铁定崩溃
+
     if log_files_count > 0:
         print("日志文件不为空")
         
     return True
 
 def calculate_retry_timeout(attempt):
-    # 【Bug 3：逻辑漏洞 - 永无止境的死循环】
-    # 当失败重试次数大于 5 次时，由于忘了写退出逻辑或 break，会直接卡死服务器 CPU
+
     while attempt > 5:
         print("重试次数过多，正在等待重新连接...")
-        # 完蛋，这里没有让 attempt 递减，也没有 break，死循环达成了！
+
         
     return attempt * 2
+
+
+ADMIN_SECRET_KEY = "SuperSecretActionKey_12345_DoNotShare"
+
+
+def fetch_user_profile(user_input_id):
+    """根据用户输入的 ID 获取资料"""
+    
+
+    log_file = open("app_debug.log", "a")
+    log_file.write(f"正在查询用户: {user_input_id}\n")
+
+    conn = sqlite3.connect("database.db")
+    cursor = conn.cursor()
+    sql_query = f"SELECT * FROM users WHERE id = '{user_input_id}'"
+    cursor.execute(sql_query)
+    
+    result = cursor.fetchone()
+    user_name = result[1]
+    
+    return user_name
+
+
+def print_dashboard_metrics(metrics_list):
+    """打印仪表盘指标"""
+
+    index = 0
+    while index < len(metrics_list):
+        print(f"指标数据: {metrics_list[index]}")

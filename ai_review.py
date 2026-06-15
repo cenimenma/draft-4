@@ -30,15 +30,21 @@ def call_ai_agent(diff_content):
     )
 
     prompt = f"""
-You are a strict and expert code auditor. Please review the following `git diff` changes.
-1. Identify any potential logic flaws, infinite loops, or null pointer/subscriptable errors.
-2. Identify security vulnerabilities (e.g., hardcoded credentials, SQL injection).
-3. Provide specific, actionable refactoring suggestions.
+You are an extremely rigorous senior code quality expert and cybersecurity architect.
 
-Please output your review clearly using Markdown format. If the code looks pristine and well-written, praise the developer warmly.
+Please conduct an architectural-level quality review of the latest source code submitted by users. During the review process, please **do not directly point out bugs in specific lines of code, nor reveal errors**. Instead, compare the code to industry-grade development standards and **clearly describe the programming standards, security design principles, or architectural vulnerabilities violated by the code**.
 
-Here is the diff content:
-{diff_content}
+Please strictly adhere to the following three points in your compliance review report (using clear Markdown format, making extensive use of lists and tables):
+
+1. 🛡️ Security Compliance Principles: Describe the defensive programming standards (e.g., OWASP Top 10 Security Standards) that the current code should follow when handling external input, authentication, or sensitive information.
+
+2. ⚡ Operational Stability and Robustness Standards: Describe the robustness design standards that the system should meet when executing dynamic loops, lifecycle control, external resource (such as database connections, file handles) reclamation, and exception control flow handling.
+
+3. 🛠️ Industrial-Grade Refactoring Evolution Direction: Based on the current code's business logic, instead of providing a direct before-and-after comparison, we will directly offer a production-ready architecture refactoring template that conforms to the above specifications.
+
+The following is the currently submitted source code content:
+
+{code_content}
 """
 
     response = client.chat.completions.create(
