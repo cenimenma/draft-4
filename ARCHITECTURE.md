@@ -1,0 +1,291 @@
+# Argus Auto Review - Architecture
+
+## 🏗️ System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Developer Workflow                       │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            │ 1. Create/Update PR
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    GitHub Repository                         │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │         Pull Request #123                            │  │
+│  │  - Changed: drivers/usb/core/hub.c                   │  │
+│  │  - Added: int uninitialized_var;                     │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            │ 2. Triggers GitHub Actions
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│              GitHub Actions (Cloud Runner)                   │
+│                                                              │
+│  Step 1: Checkout code                                      │
+│  Step 2: Setup Python                                       │
+│  Step 3: Install dependencies                               │
+│  Step 4: Extract changed files & diffs                      │
+│  Step 5: Run auto_review.py                                 │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            │ 3. HTTP POST /api/v1/review
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Argus API Server                            │
+│              (draft_3/backend/main.py)                       │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  FastAPI Endpoint: /api/v1/review                  │    │
+│  │  - Receives patch content                          │    │
+│  │  - Loads Qwen2.5-Coder model                       │    │
+│  │  - Generates review                                │    │
+│  │  - Returns structured result                       │    │
+│  └────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            │ 4. AI Review Result
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│              auto_review.py Processing                       │
+│                                                              │
+│  - Parse API response                                        │
+│  - Format as Markdown comment                                │
+│  - Add severity emojis (🔴🟡🔵)                              │
+│  - Structure issues & suggestions                            │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            │ 5. POST /repos/{repo}/issues/{pr}/comments
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 GitHub PR Comment                            │
+│                                                              │
+│  ## 🤖 AI Code Review - `hub.c`                             │
+│                                                              │
+│  ### 🟡 Issue #1: Warning                                   │
+│  **Problem:** Variable declared but not used                │
+│  **Suggestion:** Remove unused variable                     │
+│                                                              │
+│  *Generated by Argus AI Code Reviewer*                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔄 Data Flow
+
+### 1. Trigger Phase
+```
+Event: PR opened/updated
+  ↓
+GitHub Actions detects event
+  ↓
+Workflow starts on ubuntu-latest runner
+```
+
+### 2. Extraction Phase
+```
+Checkout repository
+  ↓
+Identify changed files (git diff)
+  ↓
+Extract patch content for each file
+  ↓
+Prepare JSON payload
+```
+
+### 3. Review Phase
+```
+Send PATCH to Argus API
+  ↓
+API loads model (if not cached)
+  ↓
+Model analyzes code
+  ↓
+Generate structured review:
+  {
+    "success": true,
+    "issues": [...],
+    "severity": "Warning",
+    "suggestion": "..."
+  }
+```
+
+### 4. Comment Phase
+```
+Format review as Markdown
+  ↓
+Call GitHub API to post comment
+  ↓
+Comment appears on PR
+  ↓
+Developer sees AI feedback
+```
+
+---
+
+## 🔑 Key Components
+
+### A. GitHub Actions Workflow
+**File:** `.github/workflows/auto-review.yml`
+
+**Responsibilities:**
+- Trigger on PR events
+- Setup Python environment
+- Execute auto_review.py
+- Provide GitHub context (token, repo, PR number)
+
+### B. Auto Review Script
+**File:** `auto_review.py`
+
+**Responsibilities:**
+- Get changed files from PR
+- Call Argus API for each file
+- Format results as comments
+- Post to GitHub PR
+
+**Key Methods:**
+```python
+get_changed_files()      # Extract diffs
+review_file()            # Call API
+format_comment()         # Markdown formatting
+post_pr_comment()        # GitHub API call
+```
+
+### C. Argus API
+**Location:** draft_3/backend/main.py
+
+**Endpoint:** `POST /api/v1/review`
+
+**Input:**
+```json
+{
+  "patch": "diff content...",
+  "project_name": "linux-kernel",
+  "file_path": "drivers/usb/core/hub.c"
+}
+```
+
+**Output:**
+```json
+{
+  "success": true,
+  "issues": [
+    {
+      "issue": "Variable not used",
+      "severity": "Warning",
+      "suggestion": "Remove it"
+    }
+  ],
+  "summary": "Found 1 issue(s)"
+}
+```
+
+---
+
+## 🌐 Deployment Options
+
+### Option 1: Cloud Server (Recommended)
+```
+Argus API deployed on:
+- AWS EC2
+- Google Cloud Compute
+- Azure VM
+- DigitalOcean Droplet
+
+Pros: ✅ Always available, scalable
+Cons: 💰 Costs money
+```
+
+### Option 2: Platform-as-a-Service
+```
+Deploy to:
+- Railway.app (free tier)
+- Render.com (free tier)
+- Fly.io (free tier)
+
+Pros: ✅ Easy setup, free options
+Cons: ⚠️ May sleep after inactivity
+```
+
+### Option 3: Local + ngrok (Testing)
+```bash
+# Terminal 1: Start API
+python backend/main.py
+
+# Terminal 2: Create tunnel
+ngrok http 8000
+
+# Use ngrok URL as ARGUS_API_URL
+```
+
+Pros: ✅ Free, quick testing  
+Cons: ❌ Not for production, requires ngrok running
+
+---
+
+## 🔐 Security Model
+
+### Authentication
+- **GitHub → Actions:** Automatic (GITHUB_TOKEN)
+- **Actions → Argus API:** HTTPS (no auth needed for MVP)
+- **Argus API → Model:** Local inference (no external calls)
+
+### Permissions
+```yaml
+permissions:
+  pull-requests: write  # Post comments
+  contents: read        # Read code
+```
+
+### Secrets Management
+```
+GitHub Secrets:
+- ARGUS_API_URL: https://your-api.com
+- GITHUB_TOKEN: Auto-provided
+```
+
+---
+
+## ⚡ Performance
+
+### Typical Execution Time
+```
+Workflow startup:     ~30s
+Dependency install:   ~20s
+API call (per file):  ~10-30s
+Comment posting:      ~5s
+Total (1 file):       ~60-90s
+Total (5 files):      ~2-3min
+```
+
+### Optimization Tips
+1. **Cache dependencies** - Already configured
+2. **Batch API calls** - Future enhancement
+3. **Skip trivial files** - Filter .md, .txt
+4. **Parallel processing** - Review multiple files simultaneously
+
+---
+
+## 🎯 Success Metrics
+
+Track these KPIs:
+- ✅ % of PRs with AI review
+- ⏱️ Average review time
+- 👍 Developer acceptance rate
+- 🐛 Bugs caught before merge
+- ⭐ Review quality score
+
+---
+
+## 🚀 Next Steps
+
+1. **Test locally** with `test_local.bat`
+2. **Deploy API** to cloud/PaaS
+3. **Configure secrets** in GitHub
+4. **Create test PR** and verify
+5. **Monitor & iterate** based on feedback
+
+You're ready to automate code reviews! 🎉

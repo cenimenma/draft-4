@@ -1,0 +1,36 @@
+name: AI Code Review
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # 赋予流水线往 PR 回写评论的权限
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 获取完整历史，方便对比 diff
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install openai requests
+
+      - name: Run AI Review Script
+        env:
+          # 在 GitHub 仓库的 Settings -> Secrets 里配置你的大模型 API 密钥
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}  
+          # GitHub 自动生成的临时 Token，用来调用官方 API 回写评论
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        run: python ai_review.py
