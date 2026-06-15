@@ -30,14 +30,14 @@ def call_ai_agent(diff_content):
     )
 
     prompt = f"""
-你是一个严苛的代码审计专家。请对以下 `git diff` 展现的代码变动进行审查。
-1. 找出可能存在的逻辑漏洞、死循环或空指针隐患。
-2. 找出潜在的安全风险（如密钥泄漏、注入漏洞）。
-3. 给出具体的修改建议。
+You are a strict and expert code auditor. Please review the following `git diff` changes.
+1. Identify any potential logic flaws, infinite loops, or null pointer/subscriptable errors.
+2. Identify security vulnerabilities (e.g., hardcoded credentials, SQL injection).
+3. Provide specific, actionable refactoring suggestions.
 
-请直接清晰地输出你的审查意见，使用 Markdown 格式。如果代码写得很完美，请直接夸奖开发者。
+Please output your review clearly using Markdown format. If the code looks pristine and well-written, praise the developer warmly.
 
-以下是代码变动内容：
+Here is the diff content:
 {diff_content}
 """
 
