@@ -8,20 +8,40 @@ import requests
 from openai import OpenAI
 
 
-def get_git_diff():
-    """获取本次提交或 PR 的代码变动"""
+def get_changed_files():
+    """获取本次提交中变更的文件列表和完整内容"""
     try:
-        # 对比上一次提交，获取纯文本的 diff 差异
-        diff = subprocess.check_output(["git", "diff", "HEAD~1", "HEAD"]).decode("utf-8")
-        return diff
+        # 获取最近一次提交变更的文件列表
+        changed_files = subprocess.check_output(
+            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD~1..HEAD"]
+        ).decode("utf-8").strip().split('\n')
+        
+        files_content = []
+        for file_path in changed_files:
+            if not file_path or file_path.startswith('.github/'):
+                continue
+            
+            try:
+                # 读取文件的完整内容
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                files_content.append({
+                    'path': file_path,
+                    'content': content
+                })
+            except Exception as e:
+                print(f"️  无法读取文件 {file_path}: {e}")
+        
+        return files_content
     except Exception as e:
-        return f"获取 Diff 失败: {str(e)}"
+        print(f"❌ 获取文件失败: {str(e)}")
+        return []
 
 
-def call_ai_agent(diff_content):
-    """模拟微调 Agent 进行 Prompt 调用"""
-    if not diff_content.strip():
-        return "本次提交没有代码变动。"
+def call_ai_agent(files_content):
+    """使用完整代码内容进行 AI 审查"""
+    if not files_content:
+        return "本次提交没有可审查的代码文件。"
 
     # 初始化大模型客户端（此处以 DeepSeek 为例）
     client = OpenAI(
@@ -29,6 +49,13 @@ def call_ai_agent(diff_content):
         base_url="https://open.bigmodel.cn/api/paas/v4"  # 开完会后可改成你国内 GPU 机器的本地 Ollama 地址
     )
 
+    # 构建完整的代码内容字符串
+    code_sections = []
+    for file_info in files_content:
+        code_sections.append(f"\n{'='*60}\n📄 File: {file_info['path']}\n{'='*60}\n{file_info['content']}")
+    
+    full_code = '\n'.join(code_sections)
+    
     prompt = f"""
 You are an extremely rigorous senior code quality expert and cybersecurity architect.
 
@@ -36,7 +63,7 @@ Please conduct an architectural-level quality review of the latest source code s
 
 Please strictly adhere to the following three points in your compliance review report (using clear Markdown format, making extensive use of lists and tables):
 
-1. 🛡️ Security Compliance Principles: Describe the defensive programming standards (e.g., OWASP Top 10 Security Standards) that the current code should follow when handling external input, authentication, or sensitive information.
+1. ️ Security Compliance Principles: Describe the defensive programming standards (e.g., OWASP Top 10 Security Standards) that the current code should follow when handling external input, authentication, or sensitive information.
 
 2. ⚡ Operational Stability and Robustness Standards: Describe the robustness design standards that the system should meet when executing dynamic loops, lifecycle control, external resource (such as database connections, file handles) reclamation, and exception control flow handling.
 
@@ -44,7 +71,7 @@ Please strictly adhere to the following three points in your compliance review r
 
 The following is the currently submitted source code content:
 
-{code_content}
+{full_code}
 """
 
     response = client.chat.completions.create(
@@ -77,10 +104,13 @@ def post_github_comment(review_text):
 
 
 if __name__ == "__main__":
-    print("正在提取代码 Diff...")
-    code_diff = get_git_diff()
+    print("正在提取变更的文件...")
+    changed_files = get_changed_files()
+    print(f"✅ 找到 {len(changed_files)} 个变更的文件")
+    
     print("正在召唤 AI Agent 审计代码...")
-    review = call_ai_agent(code_diff)
+    review = call_ai_agent(changed_files)
+    
     print("正在将结果同步回 GitHub...")
     print(review)
     # post_github_comment(review)
