@@ -26,7 +26,7 @@ def call_ai_agent(diff_content):
     # 初始化大模型客户端（此处以 DeepSeek 为例）
     client = OpenAI(
         api_key=os.environ.get("LLM_API_KEY"),
-        base_url="https://api.deepseek.com/v1"  # 开完会后可改成你国内 GPU 机器的本地 Ollama 地址
+        base_url="https://open.bigmodel.cn/api/paas/v4"  # 开完会后可改成你国内 GPU 机器的本地 Ollama 地址
     )
 
     prompt = f"""
