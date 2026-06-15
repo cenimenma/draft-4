@@ -42,7 +42,7 @@ def call_ai_agent(diff_content):
 """
 
     response = client.chat.completions.create(
-        model="deepseek-chat",  # 或者是你微调的模型名称
+        model="glm-4.6v-flashx",  # 或者是你微调的模型名称
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2
     )
