@@ -76,4 +76,5 @@ if __name__ == "__main__":
     print("正在召唤 AI Agent 审计代码...")
     review = call_ai_agent(code_diff)
     print("正在将结果同步回 GitHub...")
-    post_github_comment(review)
+    print(review)
+    # post_github_comment(review)
